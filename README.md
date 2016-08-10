@@ -1,5 +1,6 @@
 ##MT7687 Serial Uploader  
 this uploader is using xmodem to upload the bin file to MT7687  
+used xmodem,pyserial and pyprind
 
 #Usage 
 ```
