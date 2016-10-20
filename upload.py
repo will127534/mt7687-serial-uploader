@@ -25,14 +25,27 @@ if not os.path.exists(opt.bin_path):
     sys.exit(-1)
 
 s = serial.Serial(opt.com_port, 115200)
+s.rts = 0;
+'''
+s = serial.Serial()
+s.baudrate = 115200
+s.port = opt.com_port
+s.rts = 0;
+s.open()
+'''
+#s.setRTS(True)
+#s.setDTR(True)
+#time.sleep(0.1)
+#s.setRTS(False)
+#s.setDTR(False)
 
 print >> sys.stderr, "Please push the Reset button"
 
-flag = 1
-while flag:
+flag=0
+while flag<3:
     c = s.read()
     if c =='C':
-        flag = 0
+        flag = flag +1
         pass
     pass
 
@@ -57,6 +70,7 @@ def pgupdate(read, total):
 m = xmodem.XMODEM(getc, putc)
 stream = open('./bootloader.bin', 'rb')
 m.send(stream)
+
 
 print >> sys.stderr, "Bootloader uploaded, start uploading user bin"
 time.sleep(1)
