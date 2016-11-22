@@ -5,14 +5,18 @@ import os, sys, time
 import logging
 import pyprind
 
+
+
 logging.basicConfig()
 parser = OptionParser(usage="python %prog [options]")
 parser.add_option("-f", dest="bin_path", help="path of bin to be upload")
 parser.add_option("-c", dest="com_port", help="COM port, can be COM1, COM2, ..., COMx")
 parser.add_option("-b", dest="baud_rate", help="Baud rate, can be 9600, 115200, etc...", type="int", default=115200)
+parser.add_option("-d", action="store_true", dest="debug")
+
 (opt, args) = parser.parse_args()
 
-
+debug = opt.debug
 
 if not opt.bin_path or not opt.com_port:
     print >> sys.stderr, "\nError: Invalid parameter!! Please specify COM port and bin.\n"
@@ -24,32 +28,78 @@ if not os.path.exists(opt.bin_path):
     parser.print_help()
     sys.exit(-1)
 
-s = serial.Serial(opt.com_port, 115200)
-s.rts = 0;
-'''
+#s = serial.Serial(opt.com_port, 115200)
+#s.rts = 0;
 s = serial.Serial()
-s.baudrate = 115200
-s.port = opt.com_port
-s.rts = 0;
-s.open()
-'''
-#s.setRTS(True)
-#s.setDTR(True)
-#time.sleep(0.1)
-#s.setRTS(False)
-#s.setDTR(False)
+
+def resetIntoBootloader():
+    
+    s.baudrate = 115200
+    s.port = opt.com_port
+    s.timeout = 1
+    #s.rts = 0;
+    s.open()
+
+    #init Com port to orginal state
+    s.setRTS(False)
+    s.setDTR(False)
+    time.sleep(0.05)
+
+    #Discharge RTS
+    s.setRTS(True)
+    time.sleep(0.05)
+
+    #Pull down only DTR
+    s.setDTR(True)
+    #time.sleep(0.01)
+    s.setRTS(False)
+    pass
+
 
 print >> sys.stderr, "Please push the Reset button"
 
-flag=0
-while flag<3:
-    c = s.read()
-    if c =='C':
-        flag = flag +1
-        pass
-    pass
 
-print >> sys.stderr, "Reset button pushed, start uploading bootloader"
+error_count = 0
+c_count = 0
+retry = 0
+start_time = time.time()
+resetIntoBootloader()
+while 1:
+    c = s.read()
+    if debug:
+        print "Read: "+c.encode('hex')
+        pass
+    if c == "C":
+        c_count  = c_count +1
+    if c!=0 and c!="C":
+        error_count = error_count +1
+    if c_count>1:
+        print >> sys.stderr, "Reset button pushed, start uploading bootloader"
+        break
+        pass
+    if error_count>3:
+        print "Error - Not Reading the start flag" 
+        retry  = retry +1
+        error_count = 0
+        c_count = 0
+        start_time = time.time()
+        s.close()
+        resetIntoBootloader()
+    if time.time() - start_time > 3.0:
+        print "Error - Timeout" 
+        retry  = retry +1
+        error_count = 0
+        c_count = 0
+        start_time = time.time()
+        s.close()
+        resetIntoBootloader()
+        pass
+    if retry>3:
+        print "Exiting"
+        exit()
+        pass
+
+
 statinfo = os.stat('./bootloader.bin')
 bar = pyprind.ProgBar(statinfo.st_size/128+1)
 
