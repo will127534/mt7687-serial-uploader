@@ -11,10 +11,17 @@ logging.basicConfig()
 parser = OptionParser(usage="python %prog [options]")
 parser.add_option("-f", dest="bin_path", help="path of bin to be upload")
 parser.add_option("-c", dest="com_port", help="COM port, can be COM1, COM2, ..., COMx")
-parser.add_option("-b", dest="baud_rate", help="Baud rate, can be 9600, 115200, etc...", type="int", default=115200)
+parser.add_option("--cm4", action="store_true", dest="cm4")
+parser.add_option("--n9", action="store_true", dest="n9")
+parser.add_option("--ldr", action="store_true", dest="ldr")
 parser.add_option("-d", action="store_true", dest="debug")
-
 (opt, args) = parser.parse_args()
+
+if not opt.n9 and not opt.cm4 and not opt.ldr:
+    print >> sys.stderr, "\nError: Invalid parameter!! Please specify which target to program.\n" 
+    parser.print_help()
+    sys.exit(-1)
+    pass
 
 debug = opt.debug
 
@@ -67,7 +74,7 @@ resetIntoBootloader()
 while 1:
     c = s.read()
     if debug:
-        print "Read: "+c.encode('hex')
+        print >> sys.stderr, "Read: "+c.encode('hex')
         pass
     if c == "C":
         c_count  = c_count +1
@@ -118,13 +125,22 @@ def pgupdate(read, total):
     print "\r%d/%d bytes (%2.f%%) ..." % (read, total, read*100/total)
 
 m = xmodem.XMODEM(getc, putc)
+
 stream = open('./bootloader.bin', 'rb')
 m.send(stream)
-
+s.baudrate = 115200
 
 print >> sys.stderr, "Bootloader uploaded, start uploading user bin"
 time.sleep(1)
-s.write("2\r")
+if opt.ldr:
+    s.write("1\r")
+    pass
+if opt.n9:
+    s.write("3\r")
+    pass
+if opt.cm4:
+    s.write("2\r")
+    pass
 s.flush()
 s.flushInput()
 
